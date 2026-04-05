@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+<style>
+body {
+    font-family: Arial;
+    background: #eef1f5;
+    padding: 20px;
+}
+
+h2 {
+    text-align: center;
+}
+
+h3 {
+    margin-top: 20px;
+}
+
+input {
+    padding: 10px;
+    margin: 5px;
+    width: 180px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button {
+    padding: 10px 15px;
+    margin: 5px;
+    border: none;
+    background: #007bff;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+#jobs {
+    margin-top: 20px;
+}
+
+#jobs div {
+    background: white;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+}
+
+
+
+</style>
+</head>
+<body>
+<h2>Dashboard 🔒</h2>
+
+<p id="welcome"></p>
+
+<button onclick="logout()">Logout</button>
+
+<hr/>
+
+<h3>Add New Job</h3>
+
+<div>
+    <input type="text" id="category" placeholder="Category (MTN / Telecel / Other)" />
+    <input type="date" id="date" />
+    <input type="text" id="customerName" placeholder="Customer Name" />
+    <input type="text" id="fiberNo" placeholder="Fiber No" />
+    <input type="text" id="sn" placeholder="SN" />
+</div>
+
+<button onclick="addJob()">Add Job</button>
+
+<hr/>
+
+<h3>Filter Jobs</h3>
+
+<button onclick="filterJobs('All')">All</button>
+<button onclick="filterJobs('MTN')">MTN</button>
+<button onclick="filterJobs('Telecel')">Telecel</button>
+<button onclick="filterJobs('Other')">Other</button>
+
+<hr/>
+
+<h3>All Jobs</h3>
+
+<div id="jobs"></div>
+<script>
+const token = localStorage.getItem("token");
+
+if (!token) {
+    alert("Please login first");
+    window.location.href = "index.html";
+}
+
+// CALL BACKEND (protected route)
+fetch("http://localhost:5000/api/dashboard", {
+    method: "GET",
+    headers: {
+        "Authorization": "Bearer " + token
+    }
+})
+.then(res => res.json())
+.then(data => {
+    document.getElementById("welcome").innerText = data;
+
+})
+.catch(err => {
+    alert("Access denied");
+    window.location.href = "index.html";
+});
+
+// logout
+function logout() {
+    localStorage.removeItem("token");
+    window.location.href = "index.html";
+}
+
+
+
+
+async function loadJobs(category = "All") {
+    try {
+        const res = await fetch("http://localhost:5000/api/job/all", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const data = await res.json();
+        console.log(data);
+
+        const jobContainer = document.getElementById("jobs");
+
+        jobContainer.innerHTML = "";
+
+        data
+.filter(job => category === "All" || job.category === category)
+.forEach(job => {
+            const div = document.createElement("div");
+
+div.innerHTML = `
+    <p><b>Category:</b> ${job.category}</p>
+    <p><b>Date:</b> ${job.date}</p>
+    <p><b>Customer:</b> ${job.customerName}</p>
+    <p><b>Fiber No:</b> ${job.fiberNo}</p>
+    <p><b>SN:</b> ${job.sn}</p>
+
+    <button onclick="editJob('${job._id}', '${job.category}', '${job.date}', '${job.customerName}', '${job.fiberNo}', '${job.sn}')">Edit</button>
+    <button onclick="deleteJob('${job._id}')">Delete</button>
+
+    <hr/>
+`;
+            jobContainer.appendChild(div);
+        });
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+loadJobs();
+
+
+async function addJob() {
+    const category = document.getElementById("category").value;
+    const date = document.getElementById("date").value;
+    const customerName = document.getElementById("customerName").value;
+    const fiberNo = document.getElementById("fiberNo").value;
+    const sn = document.getElementById("sn").value;
+
+    try {
+       let url = "http://localhost:5000/api/job/add";
+let method = "POST";
+
+// if editing, change to update
+if (window.editingId) {
+    url = `http://localhost:5000/api/job/update/${window.editingId}`;
+    method = "PUT";
+}
+
+const res = await fetch(url, {
+    method: method,
+    headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify({
+        category,
+        date,
+        customerName,
+        fiberNo,
+        sn
+    })
+});
+
+const data = await res.json();
+alert(data);
+
+// clear editing mode
+window.editingId = null;
+
+loadJobs();// refresh jobs list
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+async function deleteJob(id) {
+    try {
+        const res = await fetch(`http://localhost:5000/api/job/delete/${id}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const data = await res.json();
+        alert(data);
+
+        loadJobs(); // refresh list
+
+    } catch (err) {
+        console.log(err);
+    }
+}
+function filterJobs(category) {
+    loadJobs(category);
+}
+
+function editJob(id, category, date, customerName, fiberNo, sn) {
+    document.getElementById("category").value = category;
+    document.getElementById("date").value = date;
+    document.getElementById("customerName").value = customerName;
+    document.getElementById("fiberNo").value = fiberNo;
+    document.getElementById("sn").value = sn;
+
+    // save id temporarily
+    window.editingId = id;
+}
+
+</script>
+
+</body>
+</html>
