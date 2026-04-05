@@ -1,7 +1,7 @@
 
 require("dotenv").config(); // MUST BE FIRST
 
-const jobRoutes = require("./routes/job");
+const jobRoutes = require("./routes/jobs");
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
